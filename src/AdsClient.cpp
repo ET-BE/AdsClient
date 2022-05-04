@@ -1,7 +1,7 @@
-#include "tcAdsClient.h"
+#include "../include/AdsClient/AdsClient.h"
 #ifdef WIN32
 //--------------------------------------------------------------
-tcAdsClient::tcAdsClient(unsigned short port)
+AdsClient::AdsClient(unsigned short port)
 {
 	// Open communication port on the ADS router
 	_nPort = AdsPortOpenEx();
@@ -16,7 +16,7 @@ tcAdsClient::tcAdsClient(unsigned short port)
 }
 
 //--------------------------------------------------------------
-unsigned long tcAdsClient::getVariableHandle(char* szVarIn, int numBytes)
+unsigned long AdsClient::getVariableHandle(char* szVarIn, int numBytes)
 {
 	unsigned long lHdlVar;
 	// Fetch handle for the PLC variable 
@@ -42,7 +42,7 @@ unsigned long tcAdsClient::getVariableHandle(char* szVarIn, int numBytes)
 }
 
 //--------------------------------------------------------------
-void tcAdsClient::releaseVariableHandle(unsigned long hVar)
+void AdsClient::releaseVariableHandle(unsigned long hVar)
 {
 	// release handle
 	nErr = AdsSyncWriteReqEx(
@@ -58,7 +58,7 @@ void tcAdsClient::releaseVariableHandle(unsigned long hVar)
 }
 
 //--------------------------------------------------------------
-unsigned long tcAdsClient::registerTCAdsDeviceNotification(unsigned long lhVar, unsigned long lhUser, PAdsNotificationFuncEx callback, unsigned long cbLength)
+unsigned long AdsClient::registerTCAdsDeviceNotification(unsigned long lhVar, unsigned long lhUser, PAdsNotificationFuncEx callback, unsigned long cbLength)
 {
 
 	// set the attributes of the notification
@@ -88,7 +88,7 @@ unsigned long tcAdsClient::registerTCAdsDeviceNotification(unsigned long lhVar, 
 	return hNotification;
 }
 
-void tcAdsClient::unregisterTCAdsDeviceNotification(unsigned long hNotification)
+void AdsClient::unregisterTCAdsDeviceNotification(unsigned long hNotification)
 {
 	// finish the transmission of the PLC-variable 
 	nErr = AdsSyncDelDeviceNotificationReqEx(_nPort, _pAddr, hNotification);
@@ -98,7 +98,7 @@ void tcAdsClient::unregisterTCAdsDeviceNotification(unsigned long hNotification)
 }
 
 //--------------------------------------------------------------
-void tcAdsClient::read(unsigned long lHdlVar, void *pData, int numBytes)
+void AdsClient::read(unsigned long lHdlVar, void *pData, int numBytes)
 {
 	// Read values of the PLC variables (by handle)
 	nErr = AdsSyncReadReqEx2(
@@ -114,7 +114,7 @@ void tcAdsClient::read(unsigned long lHdlVar, void *pData, int numBytes)
 }
 
 //--------------------------------------------------------------
-void tcAdsClient::write(unsigned long lHdlVar, void *pData, int numBytes)
+void AdsClient::write(unsigned long lHdlVar, void *pData, int numBytes)
 {
 	// Write to ADS (bytes).
 	nErr = AdsSyncWriteReqEx(
@@ -129,7 +129,7 @@ void tcAdsClient::write(unsigned long lHdlVar, void *pData, int numBytes)
 }
 
 //--------------------------------------------------------------
-void tcAdsClient::disconnect()
+void AdsClient::disconnect()
 {
 	// unregister notifications
 	while (_hNotifications.size() > 0) {

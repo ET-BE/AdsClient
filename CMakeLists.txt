@@ -3,7 +3,7 @@ project("AdsClient")
 
 file(GLOB project_SRC
 	"src/*.h"
-    "src/tcAdsClient.cpp"
+    "src/AdsClient.cpp"
 )
 
 add_library("${PROJECT_NAME}" STATIC ${project_SRC})

@@ -1,3 +1,12 @@
+# IDE stuff
+.vscode/
+.vs/
+.idea/
+
+# Build stuff
+build/
+cmake-build*/
+
 # Prerequisites
 *.d
 
@@ -16,10 +25,6 @@
 *.dylib
 *.dll
 
-# Fortran module files
-*.mod
-*.smod
-
 # Compiled Static libraries
 *.lai
 *.la
@@ -30,7 +35,3 @@
 *.exe
 *.out
 *.app
-
-# Build and binary folders
-build
-bin

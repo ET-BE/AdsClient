@@ -3,20 +3,20 @@
 
 #ifdef WIN32
 #include <iostream>
-#include <windows.h>
+#include <Windows.h>
 #include <conio.h>
 #include <vector>
 #include <algorithm>
 
 #include "TcAdsDef.h"
-#include "TcAdsApi.h"
+#include "TcAdsAPI.h"
 
 
-class tcAdsClient
+class AdsClient
 {
 	public:
-		tcAdsClient(unsigned short port);
-		~tcAdsClient() {}
+		AdsClient(unsigned short port);
+		~AdsClient() {}
 		long nErr;
 		unsigned long getVariableHandle(char* szVarIn, int numBytes);
 		void releaseVariableHandle(unsigned long hVar);
