@@ -1,151 +1,201 @@
-#include "../include/AdsClient/AdsClient.h"
-#ifdef WIN32
-//--------------------------------------------------------------
-AdsClient::AdsClient(unsigned short port)
-{
-	// Open communication port on the ADS router
-	_nPort = AdsPortOpenEx();
-	nErr = AdsGetLocalAddressEx(_nPort, _pAddr);
-	if (nErr) {
-		std::cerr << "[error] (class tcAdsClient) Error AdsGetLocalAddressEx: " << nErr << std::endl;
-		std::cerr << "[error] (class tcAdsClient) TC ADS client not running, please start TwinCAT and restart this app" << std::endl;
-	}
+#include <iostream>
+#include <chrono>
+#include <thread>
 
-	// Select Port: TwinCAT 3 PLC
-	_pAddr->port = port;
+#include "AdsClient/AdsClient.h"
+
+AdsClient::AdsClient(unsigned short port, const std::array<unsigned char, 6>& ams_address) {
+
+    ads_port_ = AdsPortOpen();
+    connected_ = true;
+
+    p_address_ = &address_; // Rely on custom pointer type
+
+    if (ams_address[0] == 0) {
+        long error = AdsGetLocalAddress(p_address_);
+
+        if (error) {
+            std::cerr << "Error in AdsGetLocalAddress: " << error << std::endl;
+        }
+    } else {
+
+        for (int i = 0; i < 6; i++) {
+            p_address_->netId.b[i] = ams_address[i];
+        }
+    }
+
+    p_address_->port = port;
 }
 
-//--------------------------------------------------------------
-unsigned long AdsClient::getVariableHandle(char* szVarIn, int numBytes)
-{
-	unsigned long lHdlVar;
-	// Fetch handle for the PLC variable 
-	nErr = AdsSyncReadWriteReqEx2(
-				_nPort, 
-				_pAddr, 
-				ADSIGRP_SYM_HNDBYNAME, 
-				0x0, 
-				sizeof(lHdlVar), 
-				&lHdlVar, 
-				numBytes, 
-				szVarIn, 
-				&_pcbReturn);
-
-	if (nErr) {
-		std::cerr << "[error] (class tcAdsClient) Error AdsSyncReadWriteReqEx2: " << nErr << " - variable " << szVarIn << " not found." << std::endl;
-		return -1;
-	} 
-	else {
-		_hVariables.push_back(lHdlVar);
-		return lHdlVar;
-	}
+AdsClient::~AdsClient() {
+    close();
 }
 
-//--------------------------------------------------------------
-void AdsClient::releaseVariableHandle(unsigned long hVar)
-{
-	// release handle
-	nErr = AdsSyncWriteReqEx(
-				_nPort, 
-				_pAddr, 
-				ADSIGRP_SYM_RELEASEHND, 
-				0, 
-				sizeof(hVar), 
-				&hVar);
+void AdsClient::close() {
 
-	if (nErr) std::cerr << "[error] (class tcAdsClient) Error AdsSyncWriteReq: " << nErr << std::endl;
-	_hVariables.erase(remove(_hVariables.begin(), _hVariables.end(), hVar), _hVariables.end()); // remove _hVariables from list
+    if (!connected_) {
+        return;
+    }
+
+    while (!variable_handles_.empty()) {
+        releaseVariableHandle(variable_handles_.back());
+    }
+
+    while (!notification_handles_.empty()) {
+        clearNotification(notification_handles_.back());
+    }
+
+    long error = AdsPortClose();
+    if (error) {
+        std::cerr << "Error in AdsPortClose: " << error << std::endl;
+    }
+
+    connected_ = false;
 }
 
-//--------------------------------------------------------------
-unsigned long AdsClient::registerTCAdsDeviceNotification(unsigned long lhVar, unsigned long lhUser, PAdsNotificationFuncEx callback, unsigned long cbLength)
-{
+/**
+ * Do not pass string name by reference, because we need a non-const pointer.
+ */
+unsigned long AdsClient::getVariableByName(std::string name) {
 
-	// set the attributes of the notification
-	AdsNotificationAttrib  _adsNotificationAttrib;
-	_adsNotificationAttrib.cbLength = cbLength;
-	_adsNotificationAttrib.nTransMode = ADSTRANS_SERVERONCHA;
-	//_adsNotificationAttrib.nTransMode = ADSTRANS_SERVERCYCLE;
-	_adsNotificationAttrib.nMaxDelay = 0;
-	_adsNotificationAttrib.nCycleTime = 10000000; // 0.5sec 
+    void* name_ptr = &name[0];
 
-	// initiate the transmission of the PLC-variable 
-	unsigned long hNotification;
-	nErr = AdsSyncAddDeviceNotificationReqEx(
-				_nPort,
-				_pAddr,
-				ADSIGRP_SYM_VALBYHND,
-				lhVar,
-				&_adsNotificationAttrib,
-				callback,
-				lhUser,
-				&hNotification);
+    unsigned long handle;
+    long error = AdsSyncReadWriteReq(p_address_,
+                                     ADSIGRP_SYM_HNDBYNAME,
+                                     0,
+                                     sizeof(handle),
+                                     &handle,
+                                     (unsigned long)name.size(),
+                                     name_ptr);
 
-	if (nErr) std::cerr << "[error] (class tcAdsClient) Error AdsSyncAddDeviceNotificationReq: " << nErr << std::endl;
-	std::cout << "[verbose] (class tcAdsClient) Registered notification: " << hNotification << std::endl;
+    if (error) {
+        std::cerr << "Error in getVariableByName: " << error << std::endl;
+        return 0;
+    }
 
-	_hNotifications.push_back(hNotification); // add hUser to list
-	return hNotification;
+    variable_handles_.push_back(handle);
+
+    return variable_handles_.back();
 }
 
-void AdsClient::unregisterTCAdsDeviceNotification(unsigned long hNotification)
-{
-	// finish the transmission of the PLC-variable 
-	nErr = AdsSyncDelDeviceNotificationReqEx(_nPort, _pAddr, hNotification);
-	if (nErr) std::cerr << "[error] (class tcAdsClient) Error AdsSyncDelDeviceNotificationReq: " << nErr << '\n';
-	
-	_hNotifications.erase(remove(_hNotifications.begin(), _hNotifications.end(), hNotification), _hNotifications.end()); // remove hNotification from list
+bool AdsClient::releaseVariableHandle(unsigned long handle) {
+
+    long error = AdsSyncWriteReqEx(ads_port_,
+                                   p_address_,
+                                   ADSIGRP_SYM_RELEASEHND,
+                                   0,
+                                   sizeof(handle),
+                                   &handle);
+
+    variable_handles_.erase(
+            std::remove(variable_handles_.begin(),
+                        variable_handles_.end(),
+                        handle), variable_handles_.end()
+    ); // Remove regardless - If release fails we cannot do anything else
+
+    if (error) {
+        std::cerr << "Error in releaseVariableHandle: " << error << std::endl;
+        return false;
+    }
+    return true;
 }
 
-//--------------------------------------------------------------
-void AdsClient::read(unsigned long lHdlVar, void *pData, int numBytes)
-{
-	// Read values of the PLC variables (by handle)
-	nErr = AdsSyncReadReqEx2(
-				_nPort, 
-				_pAddr, 
-				ADSIGRP_SYM_VALBYHND, 
-				lHdlVar, 
-				numBytes, 
-				pData, 
-				&_pcbReturn);
+bool AdsClient::read(unsigned long handle, void* buffer, int num_bytes) {
 
-	//if (nErr) cerr << "Error: AdsSyncReadReqEx2: " << nErr << '\n';
+    unsigned long bytes_read;
+
+    long error = AdsSyncReadReqEx2(ads_port_,
+                                   p_address_,
+                                   ADSIGRP_SYM_VALBYHND,
+                                   handle,
+                                   num_bytes,
+                                   buffer,
+                                   &bytes_read);
+
+    if (error) {
+        std::cerr << "Error in read: " << error << std::endl;
+        return false;
+    }
+    if (bytes_read != num_bytes) {
+        std::cerr << "Error while reading from variable: requested " << num_bytes
+                  << " bytes, but received " << bytes_read << " bytes" << std::endl;
+    }
+    return true;
 }
 
-//--------------------------------------------------------------
-void AdsClient::write(unsigned long lHdlVar, void *pData, int numBytes)
-{
-	// Write to ADS (bytes).
-	nErr = AdsSyncWriteReqEx(
-				_nPort, // Port
-				_pAddr, // Address
-				ADSIGRP_SYM_VALBYHND, // IndexGroup 
-				lHdlVar, // IndexOffset
-				numBytes, // Size of data
-				pData);
+bool AdsClient::write(unsigned long handle, void* data, int num_bytes) {
 
-	//if (nErr) cerr << "Error: AdsSyncWriteReqEx: " << nErr << '\n';
+    long error = AdsSyncWriteReqEx(ads_port_,
+                                   p_address_,
+                                   ADSIGRP_SYM_VALBYHND,
+                                   handle,
+                                   num_bytes,
+                                   data);
+
+    if (error) {
+        std::cerr << "Error in write: " << error << std::endl;
+        return false;
+    }
+    return true;
 }
 
-//--------------------------------------------------------------
-void AdsClient::disconnect()
-{
-	// unregister notifications
-	while (_hNotifications.size() > 0) {
-		unregisterTCAdsDeviceNotification(_hNotifications.back());
-	}
+unsigned long AdsClient::registerNotification(unsigned long handle,
+                                              PAdsNotificationFuncEx callback,
+                                              unsigned long var_length,
+                                              unsigned long user_handle,
+                                              AdsNotificationAttrib* attrib) {
 
-	// unregister variable handles
-	while (_hVariables.size() > 0) {
-		releaseVariableHandle(_hVariables.back());
-	}
+    if (user_handle == 0) {
+        user_handle = USER_HANDLE++;
+    }
 
-	// close port
-	nErr = AdsPortCloseEx(_nPort);
-	if (nErr) std::cerr << "[error] (class tcAdsClient) Error AdsPortCloseEx: " << nErr << " on nPort: " << _nPort << std::endl;
+    unsigned long noti_handle = 0;
+
+    AdsNotificationAttrib attrib_default;
+    if (!attrib) {
+        attrib_default.cbLength = var_length;
+        attrib_default.nTransMode = ADSTRANS_SERVERONCHA; // Callback on remote value change
+        attrib_default.nMaxDelay = 0;
+        attrib_default.nCycleTime = 10; // In 100 ns
+
+        attrib = &attrib_default;
+    }
+
+    long error = AdsSyncAddDeviceNotificationReqEx(ads_port_,
+                                                   p_address_,
+                                                   ADSIGRP_SYM_VALBYHND,
+                                                   handle,
+                                                   attrib,
+                                                   callback,
+                                                   user_handle,
+                                                   &noti_handle);
+
+    if (error) {
+        std::cerr << "Error in registerNotification: " << error << std::endl;
+        return 0;
+    }
+
+    notification_handles_.push_back(noti_handle); // add hUser to list
+    return noti_handle;
 }
-#endif
 
+bool AdsClient::clearNotification(unsigned long noti_handle) {
 
+    long error = AdsSyncDelDeviceNotificationReqEx(ads_port_, p_address_, noti_handle);
 
+    notification_handles_.erase(
+            std::remove(notification_handles_.begin(),
+                        notification_handles_.end(),
+                        noti_handle), notification_handles_.end()
+    ); // Remove anyway - if release fails we cannot do anything else
+
+    if (error) {
+        std::cerr << "Error in clearNotification: " << error << std::endl;
+        return false;
+    }
+
+    return true;
+}
+
+unsigned long AdsClient::USER_HANDLE = 1;
