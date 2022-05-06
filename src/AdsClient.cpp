@@ -1,8 +1,9 @@
 #include <iostream>
-#include <chrono>
 #include <thread>
 
-#include "AdsClient/AdsClient.h"
+#include <AdsClient/AdsClient.h>
+
+unsigned long AdsClient::USER_HANDLE = 1;
 
 AdsClient::AdsClient(unsigned short port, const std::array<unsigned char, 6>& ams_address) {
 
@@ -15,7 +16,7 @@ AdsClient::AdsClient(unsigned short port, const std::array<unsigned char, 6>& am
         long error = AdsGetLocalAddress(p_address_);
 
         if (error) {
-            std::cerr << "Error in AdsGetLocalAddress: " << error << std::endl;
+            std::cerr << "Error in AdsGetLocalAddress: " << getAdsErrorMessage(error) << std::endl;
         }
     } else {
 
@@ -47,7 +48,7 @@ void AdsClient::close() {
 
     long error = AdsPortClose();
     if (error) {
-        std::cerr << "Error in AdsPortClose: " << error << std::endl;
+        std::cerr << "Error in AdsPortClose: " << getAdsErrorMessage(error) << std::endl;
     }
 
     connected_ = false;
@@ -70,7 +71,7 @@ unsigned long AdsClient::getVariableByName(std::string name) {
                                      name_ptr);
 
     if (error) {
-        std::cerr << "Error in getVariableByName: " << error << std::endl;
+        std::cerr << "Error in getVariableByName: " << getAdsErrorMessage(error) << std::endl;
         return 0;
     }
 
@@ -95,7 +96,7 @@ bool AdsClient::releaseVariableHandle(unsigned long handle) {
     ); // Remove regardless - If release fails we cannot do anything else
 
     if (error) {
-        std::cerr << "Error in releaseVariableHandle: " << error << std::endl;
+        std::cerr << "Error in releaseVariableHandle: " << getAdsErrorMessage(error) << std::endl;
         return false;
     }
     return true;
@@ -114,7 +115,7 @@ bool AdsClient::read(unsigned long handle, void* buffer, int num_bytes) {
                                    &bytes_read);
 
     if (error) {
-        std::cerr << "Error in read: " << error << std::endl;
+        std::cerr << "Error in read: " << getAdsErrorMessage(error) << std::endl;
         return false;
     }
     if (bytes_read != num_bytes) {
@@ -134,7 +135,7 @@ bool AdsClient::write(unsigned long handle, void* data, int num_bytes) {
                                    data);
 
     if (error) {
-        std::cerr << "Error in write: " << error << std::endl;
+        std::cerr << "Error in write: " << getAdsErrorMessage(error) << std::endl;
         return false;
     }
     return true;
@@ -172,7 +173,7 @@ unsigned long AdsClient::registerNotification(unsigned long handle,
                                                    &noti_handle);
 
     if (error) {
-        std::cerr << "Error in registerNotification: " << error << std::endl;
+        std::cerr << "Error in registerNotification: " << getAdsErrorMessage(error) << std::endl;
         return 0;
     }
 
@@ -191,11 +192,20 @@ bool AdsClient::clearNotification(unsigned long noti_handle) {
     ); // Remove anyway - if release fails we cannot do anything else
 
     if (error) {
-        std::cerr << "Error in clearNotification: " << error << std::endl;
+        std::cerr << "Error in clearNotification: " << getAdsErrorMessage(error) << std::endl;
         return false;
     }
 
     return true;
 }
 
-unsigned long AdsClient::USER_HANDLE = 1;
+std::string AdsClient::getAdsErrorMessage(unsigned long error) {
+
+    auto pos = ads_error_message.find(error);
+
+    if (pos == ads_error_message.end()) {
+        return "Unknown error (" + std::to_string(error) + ")";
+    }
+
+    return pos->second;
+}

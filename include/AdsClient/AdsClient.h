@@ -4,6 +4,7 @@
 #include <array>
 #include <string>
 #include <vector>
+#include <map>
 
 #ifdef WIN32
 #include <windows.h>
@@ -12,12 +13,23 @@
 #include <TcAdsDef.h>
 #include <TcAdsAPI.h>
 
+// Symbol forward declaration
+template <typename T>
+class AdsSymbol;
+
 /**
  * Class to wrap around ADS communication
  */
 class AdsClient {
 
 public:
+
+    /**
+     * Map of error codes to human-readable error messages.
+     *
+     * See https://infosys.beckhoff.com/content/1033/tcplclib_tc2_utilities/374277003.html?id=8315955496832679590.
+     */
+    static const std::map<unsigned int, std::string> ads_error_message;
 
     /**
      * @param port Port inside ADS connection
@@ -95,6 +107,24 @@ public:
      */
     void close();
 
+    /**
+     * Get Symbol instance.
+     *
+     * @tparam T Type of the remote variable
+     * @param name
+     * @return
+     */
+    template<typename T>
+    AdsSymbol<T> getSymbolByName(const std::string& name);
+
+    /**
+     * Turn an error code into a message.
+     *
+     * @param error
+     * @return
+     */
+    static std::string getAdsErrorMessage(unsigned long error);
+
 protected:
     long ads_port_; ///< Twincat port
     AmsAddr address_; ///< AMS address
@@ -108,5 +138,7 @@ protected:
     static unsigned long USER_HANDLE; ///< Increasing handle for notifications
 };
 
+// For template implementation:
+#include "AdsClient_imp.h"
 
 #endif //SAGITTAL_BALANCE_BRIDGE_ADSCLIENT_H

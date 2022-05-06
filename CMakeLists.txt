@@ -2,6 +2,8 @@ project(AdsClient)
 
 cmake_minimum_required(VERSION 3.5)
 
+option(BUILD_EXAMPLES "Enable to also build the samples" OFF)
+
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
 include(GNUInstallDirs)
@@ -9,6 +11,9 @@ include(GNUInstallDirs)
 find_package(ADS REQUIRED)
 
 add_subdirectory(src)
+if(BUILD_EXAMPLES)
+    add_subdirectory(examples)
+endif()
 
 set(ConfigPackageLocation ${CMAKE_INSTALL_LIBDIR}/AdsClient/cmake)
 
