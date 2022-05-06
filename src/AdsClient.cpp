@@ -74,6 +74,27 @@ unsigned long AdsClient::getVariableByName(std::string name) {
     return handle;
 }
 
+AdsSymbolEntry AdsClient::getVariableInfo(std::string name) {
+
+    void* name_ptr = &name[0];
+
+    AdsSymbolEntry info;
+
+    long error = AdsSyncReadWriteReq(p_address_,
+                                     ADSIGRP_SYM_INFOBYNAMEEX,
+                                     0,
+                                     sizeof(info),
+                                     &info,
+                                     (unsigned long)name.size(),
+                                     name_ptr);
+
+    if (error) {
+        std::cerr << "Error in getVariableInfo: " << getAdsErrorMessage(error) << std::endl;
+    }
+
+    return info;
+}
+
 bool AdsClient::releaseVariableHandle(ulong handle) {
 
     long error = AdsSyncWriteReqEx(ads_port_,

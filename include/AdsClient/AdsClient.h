@@ -57,6 +57,14 @@ public:
     unsigned long getVariableByName(std::string name);
 
     /**
+     * Get variable information based on it's name.
+     *
+     * @param name
+     * @return
+     */
+    AdsSymbolEntry getVariableInfo(std::string name);
+
+    /**
      * @brief Unregister a variable handle
      * @param handle
      * @return
