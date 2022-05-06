@@ -7,20 +7,38 @@
 
 /**
  * Wrapper for remote ADS symbol.
+ *
+ * Any handle acquisition and release is done automatically.
  */
 template <typename T>
 class AdsSymbol {
 public:
 
+    struct Index {
+        unsigned long group;
+        unsigned long offset;
+    };
+
     /**
+     * Make symbol by name.
      *
      * @param client Active TwinCAT connection
      * @param name Remote variable name
      */
-    explicit AdsSymbol(AdsClient& client,
-                       const std::string& name);
+    explicit AdsSymbol(AdsClient& client, const std::string& name);
 
-    ~AdsSymbol() = default;
+    /**
+     * Make symbol through indices.
+     *
+     * @param client
+     * @param index_group
+     * @param index_offset
+     */
+    AdsSymbol(AdsClient& client,
+              const unsigned long& index_group,
+              const unsigned long& index_offset);
+
+    ~AdsSymbol();
 
     /**
      * Get current ADS value and return it.
@@ -54,6 +72,7 @@ protected:
     std::string name_; ///< Remote variable name
 
     unsigned long handle_; ///< Variable handle
+    Index index_; ///< Variable indices
 
     T value_; ///< Last known remote value
 };

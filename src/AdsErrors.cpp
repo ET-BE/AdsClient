@@ -46,7 +46,7 @@ const std::map<unsigned int, std::string> AdsClient::ads_error_message = {
         {ADSERR_DEVICE_LICENSEFUTUREISSUE, "Licensing problem: time in the future."},
         {ADSERR_DEVICE_LICENSETIMETOLONG, "License period too long."},
         {ADSERR_DEVICE_EXCEPTION, "Exception at system startup."},
-        {ADSERR_DEVICE_LICENSEDUPLICATED, "License file read twice."},
+        {ADSERR_DEVICE_LICENSEDUPLICATED, "License file read_by_handle twice."},
         {ADSERR_DEVICE_SIGNATUREINVALID, "Invalid signature."},
         {ADSERR_DEVICE_CERTIFICATEINVALID, "Invalid certificate."},
         {ADSERR_CLIENT_ERROR, "Client error."},

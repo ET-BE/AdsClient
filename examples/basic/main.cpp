@@ -10,11 +10,11 @@ int main() {
 
     float data;
 
-    bool success = client.read(handle, &data, sizeof(float));
+    bool success = client.read_by_handle(handle, &data, sizeof(float));
 
     if (!success) {
 
-        std::cerr << "Failed to read from ADS server..." << std::endl;
+        std::cerr << "Failed to read_by_handle from ADS server..." << std::endl;
         return 1;
     }
 
