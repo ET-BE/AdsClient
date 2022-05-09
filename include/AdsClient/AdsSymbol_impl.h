@@ -1,16 +1,22 @@
 #include "AdsClient/AdsSymbol.h"
 
-template <typename T>
-AdsSymbol<T>::AdsSymbol(AdsClient& client, const std::string& name) {
+template<typename T>
+AdsSymbol<T>::AdsSymbol(AdsClient& client, const std::string& name, bool use_handle) {
     client_ = &client;
     name_ = name;
 
-    handle_ = client_->getVariableByName(name_);
+    handle_ = index_.group = index_.offset = 0;
 
-    index_.group = index_.offset = 0;
+    if (use_handle) {
+        handle_ = client_->getVariableByName(name_);
+    } else {
+        const auto info = client.getVariableInfo(name);
+        index_.group = info.iGroup;
+        index_.offset = info.iOffs;
+    }
 }
 
-template <typename T>
+template<typename T>
 AdsSymbol<T>::AdsSymbol(AdsClient& client,
                         const unsigned long& index_group,
                         const unsigned long& index_offset) {
@@ -23,24 +29,43 @@ AdsSymbol<T>::AdsSymbol(AdsClient& client,
     handle_ = 0;
 }
 
-template <typename T>
+template<typename T>
 const T& AdsSymbol<T>::read() {
 
     if (handle_) {
-        client_->read_by_handle(handle_, (void*) &value_, sizeof(value_));
+        client_->read_by_handle(
+                handle_,
+                (void*) &value_,
+                sizeof(value_)
+        );
     } else {
-        client_->read(index_.group, index_.offset, (void*) &value_, sizeof(value_));
+        client_->read(
+                index_.group,
+                index_.offset,
+                (void*) &value_,
+                sizeof(value_)
+        );
     }
 
     return value();
 }
 
-template <typename T>
+template<typename T>
 bool AdsSymbol<T>::write(const T& new_value) {
 
-    auto result = client_->write_by_handle(handle_,
-                                           (void*) &new_value,
-                                           sizeof(new_value));
+    bool result;
+
+    if (handle_) {
+        result = client_->write_by_handle(handle_,
+                                          (void*) &new_value,
+                                          sizeof(new_value));
+    } else {
+        result = client_->write(index_.group,
+                                index_.offset,
+                                (void*) &new_value,
+                                sizeof(new_value));
+    }
+
 
     if (result) {
         value_ = new_value;
@@ -49,12 +74,22 @@ bool AdsSymbol<T>::write(const T& new_value) {
     return result;
 }
 
-template <typename T>
+template<typename T>
+bool AdsSymbol<T>::write() {
+    return write(value_);
+}
+
+template<typename T>
 const T& AdsSymbol<T>::value() const {
     return value_;
 }
 
-template <typename T>
+template<typename T>
+T& AdsSymbol<T>::value() {
+    return value_;
+}
+
+template<typename T>
 AdsSymbol<T>::~AdsSymbol<T>() {
 
     if (handle_) {

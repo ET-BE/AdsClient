@@ -28,5 +28,8 @@ int main() {
     }
     std::cout << std::endl;
 
+    symbol_list.value().at(4) = 3.14;
+    symbol_list.write();
+
     return 0;
 }

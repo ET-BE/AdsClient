@@ -24,8 +24,9 @@ public:
      *
      * @param client Active TwinCAT connection
      * @param name Remote variable name
+     * @param use_handle If true, rely on variable handle instead of offsets
      */
-    explicit AdsSymbol(AdsClient& client, const std::string& name);
+    explicit AdsSymbol(AdsClient& client, const std::string& name, bool use_handle = false);
 
     /**
      * Make symbol through indices.
@@ -55,9 +56,19 @@ public:
      * This will also update the local buffer.
      *
      * @param new_value
-     * @return
+     * @return True on success
      */
     bool write(const T& new_value);
+
+    /**
+     * Write the edited buffered value.
+     *
+     * Use in combination with `value()`. Useful for very large
+     * variables that you don't want to copy first.
+     *
+     * @return True on success
+     */
+    bool write();
 
     /**
      * Get last known buffered value.
@@ -65,6 +76,15 @@ public:
      * @return
      */
     const T& value() const;
+
+    /**
+     * Get editable reference to buffered value.
+     *
+     * Use in combination with `write()`.
+     *
+     * @return
+     */
+    T& value();
 
 protected:
     AdsClient* client_; ///< Pointer to active TwinCAT connection
