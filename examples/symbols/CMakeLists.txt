@@ -1,4 +1,4 @@
 add_executable(example_symbols main.cpp)
 
 target_link_libraries(example_symbols PUBLIC
-        AdsClient)
+        ADS::AdsClient)

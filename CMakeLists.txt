@@ -28,14 +28,14 @@ install(TARGETS AdsClient
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 install(EXPORT AdsClient-targets
-        NAMESPACE AdsClient::
+        NAMESPACE ADS::
         DESTINATION ${ConfigPackageLocation})
 
 install(DIRECTORY include/AdsClient
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 include(CMakePackageConfigHelpers)
-configure_package_config_file(AdsClient-config.cmake.in
+configure_package_config_file(cmake/AdsClient-config.cmake.in
         ${CMAKE_CURRENT_BINARY_DIR}/AdsClient-config.cmake
         INSTALL_DESTINATION ${ConfigPackageLocation}
         PATH_VARS CMAKE_INSTALL_INCLUDEDIR)
