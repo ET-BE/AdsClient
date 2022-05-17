@@ -4,6 +4,7 @@
 #include <array>
 #include <string>
 #include <vector>
+#include <map>
 
 #ifdef WIN32
 #include <windows.h>
@@ -12,12 +13,26 @@
 #include <TcAdsDef.h>
 #include <TcAdsAPI.h>
 
+typedef unsigned long ulong;
+typedef const unsigned long& ulong_ref;
+
+// Symbol forward declaration
+template <typename T>
+class AdsSymbol;
+
 /**
  * Class to wrap around ADS communication
  */
 class AdsClient {
 
 public:
+
+    /**
+     * Map of error codes to human-readable error messages.
+     *
+     * See https://infosys.beckhoff.com/content/1033/tcplclib_tc2_utilities/374277003.html?id=8315955496832679590.
+     */
+    static const std::map<unsigned int, std::string> ads_error_message;
 
     /**
      * @param port Port inside ADS connection
@@ -32,17 +47,56 @@ public:
 
     /**
      * @brief Register variable handle by name
+     *
+     * The handle should be released again before the connection is closed. This is not done
+     * automatically by this connection class.
+     *
      * @param name
      * @return
      */
     unsigned long getVariableByName(std::string name);
 
     /**
+     * Get variable information based on it's name.
+     *
+     * @param name
+     * @return
+     */
+    AdsSymbolEntry getVariableInfo(std::string name);
+
+    /**
      * @brief Unregister a variable handle
      * @param handle
      * @return
      */
-    bool releaseVariableHandle(unsigned long handle);
+    bool releaseVariableHandle(ulong handle);
+
+    /**
+     * Read from remote using address.
+     *
+     * @param index_group
+     * @param index_offset
+     * @param buffer
+     * @param num_bytes
+     * @return
+     */
+    bool read(ulong_ref index_group,
+              ulong_ref index_offset,
+              void* buffer,
+              ulong_ref num_bytes);
+
+    /**
+     * Write data by address.
+     *
+     * @param handle
+     * @param data
+     * @param num_bytes
+     * @return
+     */
+    bool write(ulong_ref index_group,
+               ulong_ref index_offset,
+               void *data,
+               ulong_ref num_bytes);
 
     /**
      * Read data from variable handle
@@ -52,7 +106,9 @@ public:
      * @param num_bytes
      * @return
      */
-    bool read(unsigned long handle, void *buffer, int num_bytes);
+    bool read_by_handle(ulong_ref handle,
+                        void* buffer,
+                        ulong_ref num_bytes);
 
     /**
      * Write data by variable handle
@@ -62,7 +118,9 @@ public:
      * @param num_bytes
      * @return
      */
-    bool write(unsigned long handle, void *data, int num_bytes);
+    bool write_by_handle(ulong_ref handle,
+                         void *data,
+                         ulong_ref num_bytes);
 
     /**
      * Attach a function callback to a remote value change inside TwinCAT.
@@ -76,7 +134,7 @@ public:
      * @param attrib        Notification attributes (optional)
      * @return Notification handle
      */
-    unsigned long registerNotification(unsigned long handle,
+    unsigned long registerNotification(ulong_ref handle,
                                        PAdsNotificationFuncEx callback,
                                        unsigned long var_length = 8,
                                        unsigned long user_handle = 0,
@@ -88,12 +146,30 @@ public:
      * @param noti_handle
      * @return
      */
-    bool clearNotification(unsigned long noti_handle);
+    bool clearNotification(ulong noti_handle);
 
     /**
      * Disconnect
      */
     void close();
+
+    /**
+     * Get Symbol instance.
+     *
+     * @tparam T Type of the remote variable
+     * @param name
+     * @return
+     */
+    template<typename T>
+    AdsSymbol<T> getSymbolByName(const std::string& name);
+
+    /**
+     * Turn an error code into a message.
+     *
+     * @param error
+     * @return
+     */
+    static std::string getAdsErrorMessage(unsigned long error);
 
 protected:
     long ads_port_; ///< Twincat port
@@ -102,11 +178,12 @@ protected:
 
     bool connected_; ///< Keep track if still connected to ADS
 
-    std::vector<unsigned long> variable_handles_; ///< List of variable handles
     std::vector<unsigned long> notification_handles_; ///< List of notification handles
 
     static unsigned long USER_HANDLE; ///< Increasing handle for notifications
 };
 
+// For template implementation:
+#include "AdsClient_imp.h"
 
 #endif //SAGITTAL_BALANCE_BRIDGE_ADSCLIENT_H
