@@ -1,20 +1,40 @@
-cmake_minimum_required(VERSION "3.10")
-project("AdsClient")
+project(AdsClient)
 
-file(GLOB project_SRC
-	"src/*.h"
-    "src/tcAdsClient.cpp"
-)
+cmake_minimum_required(VERSION 3.5)
 
-add_library("${PROJECT_NAME}" STATIC ${project_SRC})
+set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
-target_include_directories("${PROJECT_NAME}" PUBLIC
-	${PROJECT_SOURCE_DIR}/src
-	$ENV{TWINCAT3DIR}/../AdsApi/TcAdsDll/Include
-)
+include(GNUInstallDirs)
 
-target_link_directories( "${PROJECT_NAME}" PUBLIC
-		$ENV{TWINCAT3DIR}/../AdsApi/TcAdsDll/x64
-		$ENV{TWINCAT3DIR}/../AdsApi/TcAdsDll/x64/lib)
+find_package(ADS REQUIRED)
 
-target_link_libraries("${PROJECT_NAME}" TcAdsDll)
+add_subdirectory(src)
+
+set(ConfigPackageLocation ${CMAKE_INSTALL_LIBDIR}/AdsClient/cmake)
+
+#
+# Install the library and the include directory.
+# Also install the target exports and the custom *-config.cmake script, which is used to run FindADS for applications
+# using this library.
+#
+
+install(TARGETS AdsClient
+        EXPORT AdsClient-targets
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+
+install(EXPORT AdsClient-targets
+        NAMESPACE AdsClient::
+        DESTINATION ${ConfigPackageLocation})
+
+install(DIRECTORY include/AdsClient
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+include(CMakePackageConfigHelpers)
+configure_package_config_file(AdsClient-config.cmake.in
+        ${CMAKE_CURRENT_BINARY_DIR}/AdsClient-config.cmake
+        INSTALL_DESTINATION ${ConfigPackageLocation}
+        PATH_VARS CMAKE_INSTALL_INCLUDEDIR)
+
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/AdsClient-config.cmake"
+              "${CMAKE_SOURCE_DIR}/cmake/FindADS.cmake"
+        DESTINATION ${ConfigPackageLocation})
