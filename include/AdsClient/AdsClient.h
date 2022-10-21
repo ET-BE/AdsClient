@@ -192,14 +192,17 @@ public:
     static std::string getAdsErrorMessage(const unsigned long& error);
 
 protected:
-    long ads_port_; ///< Twincat port
-    AmsAddr address_; ///< AMS address
-    PAmsAddr p_address_; ///< Pointer to AMS address
+    long m_ads_port; ///< Twincat port
+    AmsAddr m_address; ///< AMS address
+    PAmsAddr m_p_address; ///< Pointer to AMS address
 
-    bool connected_; ///< Keep track if still connected to ADS
+    bool m_connected; ///< Keep track if still connected to ADS
 
-    std::set<NotificationHandle> notification_handles_; ///< List of notification handles
+    std::set<NotificationHandle> m_notification_handles; ///< List of notification handles
 };
+
+template<typename T, typename Item>
+void erase_safe(T& list, const Item& item);
 
 // For template implementation:
 #include "AdsClient_imp.h"

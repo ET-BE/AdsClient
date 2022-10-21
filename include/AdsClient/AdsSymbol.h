@@ -116,10 +116,10 @@ public:
     /**
      * Release a notification
      *
-     * @param noti_handle
+     * @param handle
      * @return
      */
-    bool clearNotification(unsigned long noti_handle);
+    bool clearNotification(unsigned long handle);
 
 protected:
 
@@ -136,24 +136,24 @@ protected:
                                      AdsNotificationHeader* notification,
                                      unsigned long user_handle);
 
-    AdsClient* client_; ///< Pointer to active TwinCAT connection
-
-    std::string name_; ///< Remote variable name
-
-    bool use_handle_; ///< If true, `index_` is a variable handle
-    Index index_; ///< Variable indices
-
-    T value_; ///< Last known remote value
-
-    std::set<NotificationHandle> notification_handles_; ///< Notification handles for this symbol
-
     /**
      * Track user callbacks by their notification handles.
      *
      * Each notification handle is unique, also across variables and functions. TwinCAT increments
      * the number and resets it at startup.
      */
-    static std::map<NotificationHandle, Callback> user_callbacks_;
+    static std::map<NotificationHandle, Callback> user_callbacks;
+
+    AdsClient* m_client; ///< Pointer to active TwinCAT connection
+
+    std::string m_name; ///< Remote variable name
+
+    bool m_use_handle; ///< If true, `index_` is a variable handle
+    Index m_index; ///< Variable indices
+
+    T m_value; ///< Last known remote value
+
+    std::set<NotificationHandle> m_notification_handles; ///< Notification handles for this symbol
 };
 
 // Load implementation of this template class (cannot be compiled like regular .cpp)

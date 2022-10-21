@@ -3,23 +3,23 @@
 #include "AdsClient/AdsSymbol.h"
 
 template<typename T>
-std::map<AdsClient::NotificationHandle, typename AdsSymbol<T>::Callback> AdsSymbol<T>::user_callbacks_ = {};
+std::map<AdsClient::NotificationHandle, typename AdsSymbol<T>::Callback> AdsSymbol<T>::user_callbacks = {};
 
 template<typename T>
 AdsSymbol<T>::AdsSymbol(AdsClient& client, const std::string& name, bool use_handle) :
-    client_(&client),
-    name_(name),
-    use_handle_(use_handle) {
+    m_client(&client),
+    m_name(name),
+    m_use_handle(use_handle) {
 
-    index_.group = index_.offset = 0;
+    m_index.group = m_index.offset = 0;
 
     if (use_handle) {
-        index_.group = ADSIGRP_SYM_VALBYHND;
-        index_.offset = client_->getVariableByName(name_);
+        m_index.group = ADSIGRP_SYM_VALBYHND;
+        m_index.offset = m_client->getVariableByName(m_name);
     } else {
         const auto info = client.getVariableInfo(name);
-        index_.group = info.iGroup;
-        index_.offset = info.iOffs;
+        m_index.group = info.iGroup;
+        m_index.offset = info.iOffs;
     }
 }
 
@@ -27,40 +27,40 @@ template<typename T>
 AdsSymbol<T>::AdsSymbol(AdsClient& client,
                         const unsigned long& index_group,
                         const unsigned long& index_offset) :
-        client_(&client),
-        name_(""),
-        use_handle_(false),
-        index_(index_group, index_offset) {
+        m_client(&client),
+        m_name(""),
+        m_use_handle(false),
+        m_index(index_group, index_offset) {
 }
 
 template<typename T>
 AdsSymbol<T>::~AdsSymbol<T>() {
 
-    while (!notification_handles_.empty()) {
-        clearNotification(*notification_handles_.begin());
+    while (!m_notification_handles.empty()) {
+        clearNotification(*m_notification_handles.begin());
         // Entries in the set will be removed, so use while loop instead of iterators
     }
 
-    if (use_handle_) {
-        client_->releaseVariableHandle(index_.offset);
+    if (m_use_handle) {
+        m_client->releaseVariableHandle(m_index.offset);
     }
 }
 
 template<typename T>
 const T& AdsSymbol<T>::read() {
 
-    if (use_handle_) {
-        client_->read_by_handle(
-                index_.offset,
-                (void*) &value_,
-                sizeof(value_)
+    if (m_use_handle) {
+        m_client->read_by_handle(
+                m_index.offset,
+                (void*) &m_value,
+                sizeof(m_value)
         );
     } else {
-        client_->read(
-                index_.group,
-                index_.offset,
-                (void*) &value_,
-                sizeof(value_)
+        m_client->read(
+                m_index.group,
+                m_index.offset,
+                (void*) &m_value,
+                sizeof(m_value)
         );
     }
 
@@ -72,20 +72,20 @@ bool AdsSymbol<T>::write(const T& new_value) {
 
     bool result;
 
-    if (use_handle_) {
-        result = client_->write_by_handle(index_.offset,
-                                          (void*) &new_value,
-                                          sizeof(new_value));
+    if (m_use_handle) {
+        result = m_client->write_by_handle(m_index.offset,
+                                           (void*) &new_value,
+                                           sizeof(new_value));
     } else {
-        result = client_->write(index_.group,
-                                index_.offset,
-                                (void*) &new_value,
-                                sizeof(new_value));
+        result = m_client->write(m_index.group,
+                                 m_index.offset,
+                                 (void*) &new_value,
+                                 sizeof(new_value));
     }
 
 
     if (result) {
-        value_ = new_value;
+        m_value = new_value;
     }
 
     return result;
@@ -93,17 +93,17 @@ bool AdsSymbol<T>::write(const T& new_value) {
 
 template<typename T>
 bool AdsSymbol<T>::write() {
-    return write(value_);
+    return write(m_value);
 }
 
 template<typename T>
 const T& AdsSymbol<T>::value() const {
-    return value_;
+    return m_value;
 }
 
 template<typename T>
 T& AdsSymbol<T>::value() {
-    return value_;
+    return m_value;
 }
 
 template<typename T>
@@ -111,19 +111,19 @@ unsigned long AdsSymbol<T>::registerDeviceNotification(Callback user_callback,
                                                        unsigned long user_handle,
                                                        AdsNotificationAttrib* attrib) {
 
-    auto noti_handle = client_->registerNotification(index_.group,
-                                                     index_.offset,
-                                                     &notificationCallback,
-                                                     sizeof(T),
-                                                     user_handle,
-                                                     attrib);
+    auto noti_handle = m_client->registerNotification(m_index.group,
+                                                      m_index.offset,
+                                                      &notificationCallback,
+                                                      sizeof(T),
+                                                      user_handle,
+                                                      attrib);
 
     if (noti_handle == 0) {
         return 0;
     }
 
-    notification_handles_.insert(noti_handle);
-    user_callbacks_[noti_handle] = user_callback;
+    m_notification_handles.insert(noti_handle);
+    user_callbacks[noti_handle] = user_callback;
 
     return noti_handle;
 }
@@ -136,13 +136,13 @@ void AdsSymbol<T>::notificationCallback(AmsAddr* ams_addr,
     assert(sizeof(T) == notification->cbSampleSize);
 
     T* new_value_ptr = (T*)(notification->data);
-    user_callbacks_[notification->hNotification](*new_value_ptr);
+    user_callbacks[notification->hNotification](*new_value_ptr);
 }
 
 template<typename T>
-bool AdsSymbol<T>::clearNotification(unsigned long noti_handle) {
-    bool result = client_->clearNotification(noti_handle);
-    notification_handles_.erase(noti_handle);
-    user_callbacks_.erase(noti_handle);
+bool AdsSymbol<T>::clearNotification(unsigned long handle) {
+    bool result = m_client->clearNotification(handle);
+    erase_safe(m_notification_handles, handle);
+    erase_safe(user_callbacks, handle);
     return result;
 }
