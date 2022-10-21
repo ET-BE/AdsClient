@@ -3,17 +3,15 @@
 
 #include <AdsClient/AdsClient.h>
 
-unsigned long AdsClient::USER_HANDLE = 1;
-
 AdsClient::AdsClient(unsigned short port, const std::array<unsigned char, 6>& ams_address) {
 
-    ads_port_ = AdsPortOpen();
-    connected_ = true;
+    m_ads_port = AdsPortOpen();
+    m_connected = true;
 
-    p_address_ = &address_; // Rely on custom pointer type
+    m_p_address = &m_address; // Rely on custom pointer type
 
     if (ams_address[0] == 0) {
-        long error = AdsGetLocalAddress(p_address_);
+        long error = AdsGetLocalAddress(m_p_address);
 
         if (error) {
             std::cerr << "Error in AdsGetLocalAddress: " << getAdsErrorMessage(error) << std::endl;
@@ -21,11 +19,11 @@ AdsClient::AdsClient(unsigned short port, const std::array<unsigned char, 6>& am
     } else {
 
         for (int i = 0; i < 6; i++) {
-            p_address_->netId.b[i] = ams_address[i];
+            m_p_address->netId.b[i] = ams_address[i];
         }
     }
 
-    p_address_->port = port;
+    m_p_address->port = port;
 }
 
 AdsClient::~AdsClient() {
@@ -34,12 +32,13 @@ AdsClient::~AdsClient() {
 
 void AdsClient::close() {
 
-    if (!connected_) {
+    if (!m_connected) {
         return;
     }
 
-    while (!notification_handles_.empty()) {
-        clearNotification(notification_handles_.back());
+    while (!m_notification_handles.empty()) {
+        clearNotification(*m_notification_handles.begin());
+        // Entries in the set will be removed, so use while loop instead of iterators
     }
 
     long error = AdsPortClose();
@@ -47,7 +46,7 @@ void AdsClient::close() {
         std::cerr << "Error in AdsPortClose: " << getAdsErrorMessage(error) << std::endl;
     }
 
-    connected_ = false;
+    m_connected = false;
 }
 
 /**
@@ -58,7 +57,7 @@ unsigned long AdsClient::getVariableByName(std::string name) {
     void* name_ptr = &name[0];
 
     unsigned long handle;
-    long error = AdsSyncReadWriteReq(p_address_,
+    long error = AdsSyncReadWriteReq(m_p_address,
                                      ADSIGRP_SYM_HNDBYNAME,
                                      0,
                                      sizeof(handle),
@@ -80,7 +79,7 @@ AdsSymbolEntry AdsClient::getVariableInfo(std::string name) {
 
     AdsSymbolEntry info;
 
-    long error = AdsSyncReadWriteReq(p_address_,
+    long error = AdsSyncReadWriteReq(m_p_address,
                                      ADSIGRP_SYM_INFOBYNAMEEX,
                                      0,
                                      sizeof(info),
@@ -95,10 +94,10 @@ AdsSymbolEntry AdsClient::getVariableInfo(std::string name) {
     return info;
 }
 
-bool AdsClient::releaseVariableHandle(ulong handle) {
+bool AdsClient::releaseVariableHandle(VariableHandle handle) {
 
-    long error = AdsSyncWriteReqEx(ads_port_,
-                                   p_address_,
+    long error = AdsSyncWriteReqEx(m_ads_port,
+                                   m_p_address,
                                    ADSIGRP_SYM_RELEASEHND,
                                    0,
                                    sizeof(handle),
@@ -111,12 +110,15 @@ bool AdsClient::releaseVariableHandle(ulong handle) {
     return true;
 }
 
-bool AdsClient::read(ulong_ref index_group, ulong_ref index_offset, void* buffer, ulong_ref num_bytes) {
+bool AdsClient::read(const unsigned long& index_group,
+                     const unsigned long& index_offset,
+                     void* buffer,
+                     const unsigned long& num_bytes) {
 
     unsigned long bytes_read;
 
-    long error = AdsSyncReadReqEx2(ads_port_,
-                                   p_address_,
+    long error = AdsSyncReadReqEx2(m_ads_port,
+                                   m_p_address,
                                    index_group,
                                    index_offset,
                                    num_bytes,
@@ -134,10 +136,13 @@ bool AdsClient::read(ulong_ref index_group, ulong_ref index_offset, void* buffer
     return true;
 }
 
-bool AdsClient::write(ulong_ref index_group, ulong_ref index_offset, void* data, ulong_ref num_bytes) {
+bool AdsClient::write(const unsigned long& index_group,
+                      const unsigned long& index_offset,
+                      void* data,
+                      const unsigned long& num_bytes) {
 
-    long error = AdsSyncWriteReqEx(ads_port_,
-                                   p_address_,
+    long error = AdsSyncWriteReqEx(m_ads_port,
+                                   m_p_address,
                                    index_group,
                                    index_offset,
                                    num_bytes,
@@ -150,54 +155,46 @@ bool AdsClient::write(ulong_ref index_group, ulong_ref index_offset, void* data,
     return true;
 }
 
-bool AdsClient::read_by_handle(ulong_ref handle, void* buffer, ulong_ref num_bytes) {
+bool AdsClient::read_by_handle(const VariableHandle& handle,
+                               void* buffer,
+                               const unsigned long& num_bytes) {
 
-    unsigned long bytes_read;
-
-    long error = AdsSyncReadReqEx2(ads_port_,
-                                   p_address_,
-                                   ADSIGRP_SYM_VALBYHND,
-                                   handle,
-                                   num_bytes,
-                                   buffer,
-                                   &bytes_read);
-
-    if (error) {
-        std::cerr << "Error in read_by_handle: " << getAdsErrorMessage(error) << std::endl;
-        return false;
-    }
-    if (bytes_read != num_bytes) {
-        std::cerr << "Error while reading from variable: requested " << num_bytes
-                  << " bytes, but received " << bytes_read << " bytes" << std::endl;
-    }
-    return true;
+    return read(ADSIGRP_SYM_VALBYHND,
+                handle,
+                buffer,
+                num_bytes);
 }
 
-bool AdsClient::write_by_handle(ulong_ref handle, void* data, ulong_ref num_bytes) {
+bool AdsClient::write_by_handle(const VariableHandle& handle,
+                                void* data,
+                                const unsigned long& num_bytes) {
 
-    long error = AdsSyncWriteReqEx(ads_port_,
-                                   p_address_,
-                                   ADSIGRP_SYM_VALBYHND,
-                                   handle,
-                                   num_bytes,
-                                   data);
-
-    if (error) {
-        std::cerr << "Error in write_by_handle: " << getAdsErrorMessage(error) << std::endl;
-        return false;
-    }
-    return true;
+    return write(ADSIGRP_SYM_VALBYHND,
+                 handle,
+                 data,
+                 num_bytes);
 }
 
-unsigned long AdsClient::registerNotification(ulong_ref handle,
+unsigned long AdsClient::registerNotification(const VariableHandle& handle,
                                               PAdsNotificationFuncEx callback,
-                                              unsigned long var_length,
-                                              unsigned long user_handle,
+                                              const unsigned long& var_length,
+                                              const unsigned long& user_handle,
                                               AdsNotificationAttrib* attrib) {
 
-    if (user_handle == 0) {
-        user_handle = USER_HANDLE++;
-    }
+    return registerNotification(ADSIGRP_SYM_VALBYHND,
+                                handle,
+                                callback,
+                                var_length,
+                                user_handle,
+                                attrib);
+}
+
+unsigned long AdsClient::registerNotification(const unsigned long& index_group,
+                                              const unsigned long& index_offset,
+                                              PAdsNotificationFuncEx callback,
+                                              const unsigned long& var_length,
+                                              const unsigned long& user_handle,
+                                              AdsNotificationAttrib* attrib) {
 
     unsigned long noti_handle = 0;
 
@@ -211,10 +208,10 @@ unsigned long AdsClient::registerNotification(ulong_ref handle,
         attrib = &attrib_default;
     }
 
-    long error = AdsSyncAddDeviceNotificationReqEx(ads_port_,
-                                                   p_address_,
-                                                   ADSIGRP_SYM_VALBYHND,
-                                                   handle,
+    long error = AdsSyncAddDeviceNotificationReqEx(m_ads_port,
+                                                   m_p_address,
+                                                   index_group,
+                                                   index_offset,
                                                    attrib,
                                                    callback,
                                                    user_handle,
@@ -225,19 +222,16 @@ unsigned long AdsClient::registerNotification(ulong_ref handle,
         return 0;
     }
 
-    notification_handles_.push_back(noti_handle); // add hUser to list
+    m_notification_handles.insert(noti_handle); // add handle to list
     return noti_handle;
 }
 
-bool AdsClient::clearNotification(ulong noti_handle) {
+bool AdsClient::clearNotification(NotificationHandle handle) {
 
-    long error = AdsSyncDelDeviceNotificationReqEx(ads_port_, p_address_, noti_handle);
+    long error = AdsSyncDelDeviceNotificationReqEx(m_ads_port, m_p_address, handle);
 
-    notification_handles_.erase(
-            std::remove(notification_handles_.begin(),
-                        notification_handles_.end(),
-                        noti_handle), notification_handles_.end()
-    ); // Remove anyway - if release fails we cannot do anything else
+    erase_safe(m_notification_handles, handle);
+    // Remove anyway - even if unregister failed - because we cannot do anything else about it
 
     if (error) {
         std::cerr << "Error in clearNotification: " << getAdsErrorMessage(error) << std::endl;
@@ -247,7 +241,10 @@ bool AdsClient::clearNotification(ulong noti_handle) {
     return true;
 }
 
-std::string AdsClient::getAdsErrorMessage(unsigned long error) {
+/**
+ * Cannot return a const reference because of the temporary fallback string.
+ */
+std::string AdsClient::getAdsErrorMessage(const unsigned long& error) {
 
     auto pos = ads_error_message.find(error);
 
