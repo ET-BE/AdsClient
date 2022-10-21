@@ -4,11 +4,11 @@
 
 #include <AdsClient/AdsClient.h>
 
-void valueChanged(short new_value) {
+void valueChanged(const short& new_value) {
     std::cout << "New value: " << new_value << std::endl;
 }
 
-void valueChanged2(float new_value) {
+void valueChanged2(const float& new_value) {
     std::cout << "New value 2: " << new_value << std::endl;
 }
 

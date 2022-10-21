@@ -15,7 +15,7 @@ const std::map<unsigned int, std::string> AdsClient::ads_error_message = {
         {ADSERR_DEVICE_INVALIDPARM, "Invalid parameter values."},
         {ADSERR_DEVICE_NOTFOUND, "Not found (files, ...)."},
         {ADSERR_DEVICE_SYNTAX, "Syntax error in file or command."},
-        {ADSERR_DEVICE_INCOMPATIBLE, "Objects do not match."},
+        {0x0E + ERR_ADSERRS, "Objects do not match."},
         {ADSERR_DEVICE_EXISTS, "Object already exists."},
         {ADSERR_DEVICE_SYMBOLNOTFOUND, "Symbol not found."},
         {ADSERR_DEVICE_SYMBOLVERSIONINVALID, "Invalid symbol version. This can occur due to an online change. Create a new handle."},
@@ -31,7 +31,7 @@ const std::map<unsigned int, std::string> AdsClient::ads_error_message = {
         {ADSERR_DEVICE_INVALIDINTERFACE, "Wrong interface requested."},
         {ADSERR_DEVICE_INVALIDCLSID, "Class ID is invalid."},
         {ADSERR_DEVICE_INVALIDOBJID, "Object ID is invalid."},
-        {ADSERR_DEVICE_PENDING, "Request pending."},
+        {0x1E + ERR_ADSERRS, "Request pending."},
         {ADSERR_DEVICE_ABORTED, "Request is aborted."},
         {ADSERR_DEVICE_WARNING, "Signal warning."},
         {ADSERR_DEVICE_INVALIDARRAYIDX, "Invalid array index."},
@@ -47,7 +47,7 @@ const std::map<unsigned int, std::string> AdsClient::ads_error_message = {
         {ADSERR_DEVICE_LICENSETIMETOLONG, "License period too long."},
         {ADSERR_DEVICE_EXCEPTION, "Exception at system startup."},
         {ADSERR_DEVICE_LICENSEDUPLICATED, "License file read_by_handle twice."},
-        {ADSERR_DEVICE_SIGNATUREINVALID, "Invalid signature."},
+        {0x2E + ERR_ADSERRS, "Invalid signature."},
         {ADSERR_DEVICE_CERTIFICATEINVALID, "Invalid certificate."},
         {ADSERR_CLIENT_ERROR, "Client error."},
         {ADSERR_CLIENT_INVALIDPARM, "Service contains an invalid parameter."},
@@ -66,3 +66,4 @@ const std::map<unsigned int, std::string> AdsClient::ads_error_message = {
         {ADSERR_CLIENT_SYNCRESINVALID, "Invalid response received."},
         {ADSERR_CLIENT_SYNCPORTLOCKED, "Sync Port is locked."},
 };
+// gcc cannot compile `0x2E+ERR_ADSERRS`, so those macros have been replaced here with their definitions

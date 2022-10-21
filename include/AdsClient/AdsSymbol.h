@@ -30,8 +30,7 @@ public:
         unsigned long offset;
     };
 
-    typedef void (*Callback)(T);
-    // using Callback = void (*)(T);
+    typedef void (*Callback)(const T&);
 
     /**
      * Make symbol by name.
@@ -112,7 +111,6 @@ public:
     unsigned long registerDeviceNotification(Callback user_callback,
                                              unsigned long user_handle = 0,
                                              AdsNotificationAttrib* attrib = nullptr);
-
     /**
      * Release a notification
      *
