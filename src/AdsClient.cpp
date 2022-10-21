@@ -3,8 +3,6 @@
 
 #include <AdsClient/AdsClient.h>
 
-unsigned long AdsClient::USER_HANDLE = 1;
-
 AdsClient::AdsClient(unsigned short port, const std::array<unsigned char, 6>& ams_address) {
 
     ads_port_ = AdsPortOpen();
@@ -96,7 +94,7 @@ AdsSymbolEntry AdsClient::getVariableInfo(std::string name) {
     return info;
 }
 
-bool AdsClient::releaseVariableHandle(ulong handle) {
+bool AdsClient::releaseVariableHandle(VariableHandle handle) {
 
     long error = AdsSyncWriteReqEx(ads_port_,
                                    p_address_,
@@ -112,7 +110,10 @@ bool AdsClient::releaseVariableHandle(ulong handle) {
     return true;
 }
 
-bool AdsClient::read(ulong_ref index_group, ulong_ref index_offset, void* buffer, ulong_ref num_bytes) {
+bool AdsClient::read(const unsigned long& index_group,
+                     const unsigned long& index_offset,
+                     void* buffer,
+                     const unsigned long& num_bytes) {
 
     unsigned long bytes_read;
 
@@ -135,7 +136,10 @@ bool AdsClient::read(ulong_ref index_group, ulong_ref index_offset, void* buffer
     return true;
 }
 
-bool AdsClient::write(ulong_ref index_group, ulong_ref index_offset, void* data, ulong_ref num_bytes) {
+bool AdsClient::write(const unsigned long& index_group,
+                      const unsigned long& index_offset,
+                      void* data,
+                      const unsigned long& num_bytes) {
 
     long error = AdsSyncWriteReqEx(ads_port_,
                                    p_address_,
@@ -151,7 +155,9 @@ bool AdsClient::write(ulong_ref index_group, ulong_ref index_offset, void* data,
     return true;
 }
 
-bool AdsClient::read_by_handle(ulong_ref handle, void* buffer, ulong_ref num_bytes) {
+bool AdsClient::read_by_handle(const VariableHandle& handle,
+                               void* buffer,
+                               const unsigned long& num_bytes) {
 
     return read(ADSIGRP_SYM_VALBYHND,
                 handle,
@@ -159,7 +165,9 @@ bool AdsClient::read_by_handle(ulong_ref handle, void* buffer, ulong_ref num_byt
                 num_bytes);
 }
 
-bool AdsClient::write_by_handle(ulong_ref handle, void* data, ulong_ref num_bytes) {
+bool AdsClient::write_by_handle(const VariableHandle& handle,
+                                void* data,
+                                const unsigned long& num_bytes) {
 
     return write(ADSIGRP_SYM_VALBYHND,
                  handle,
@@ -167,10 +175,10 @@ bool AdsClient::write_by_handle(ulong_ref handle, void* data, ulong_ref num_byte
                  num_bytes);
 }
 
-unsigned long AdsClient::registerNotification(ulong_ref handle,
+unsigned long AdsClient::registerNotification(const VariableHandle& handle,
                                               PAdsNotificationFuncEx callback,
-                                              unsigned long var_length,
-                                              unsigned long user_handle,
+                                              const unsigned long& var_length,
+                                              const unsigned long& user_handle,
                                               AdsNotificationAttrib* attrib) {
 
     return registerNotification(ADSIGRP_SYM_VALBYHND,
@@ -181,16 +189,12 @@ unsigned long AdsClient::registerNotification(ulong_ref handle,
                                 attrib);
 }
 
-unsigned long AdsClient::registerNotification(ulong_ref index_group,
-                                              ulong_ref index_offset,
+unsigned long AdsClient::registerNotification(const unsigned long& index_group,
+                                              const unsigned long& index_offset,
                                               PAdsNotificationFuncEx callback,
-                                              unsigned long var_length,
-                                              unsigned long user_handle,
+                                              const unsigned long& var_length,
+                                              const unsigned long& user_handle,
                                               AdsNotificationAttrib* attrib) {
-
-    if (user_handle == 0) {
-        user_handle = USER_HANDLE++;
-    }
 
     unsigned long noti_handle = 0;
 
@@ -222,11 +226,11 @@ unsigned long AdsClient::registerNotification(ulong_ref index_group,
     return noti_handle;
 }
 
-bool AdsClient::clearNotification(ulong noti_handle) {
+bool AdsClient::clearNotification(NotificationHandle handle) {
 
-    long error = AdsSyncDelDeviceNotificationReqEx(ads_port_, p_address_, noti_handle);
+    long error = AdsSyncDelDeviceNotificationReqEx(ads_port_, p_address_, handle);
 
-    notification_handles_.erase(noti_handle);
+    notification_handles_.erase(handle);
 
     // Remove anyway - if release fails we cannot do anything else
 
@@ -238,7 +242,10 @@ bool AdsClient::clearNotification(ulong noti_handle) {
     return true;
 }
 
-std::string AdsClient::getAdsErrorMessage(unsigned long error) {
+/**
+ * Cannot return a const reference because of the temporary fallback string.
+ */
+std::string AdsClient::getAdsErrorMessage(const unsigned long& error) {
 
     auto pos = ads_error_message.find(error);
 

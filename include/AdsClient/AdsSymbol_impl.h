@@ -3,7 +3,7 @@
 #include "AdsClient/AdsSymbol.h"
 
 template<typename T>
-std::map<ulong, typename AdsSymbol<T>::Callback> AdsSymbol<T>::user_callbacks_ = {};
+std::map<AdsClient::NotificationHandle, typename AdsSymbol<T>::Callback> AdsSymbol<T>::user_callbacks_ = {};
 
 template<typename T>
 AdsSymbol<T>::AdsSymbol(AdsClient& client, const std::string& name, bool use_handle) :
@@ -129,7 +129,9 @@ unsigned long AdsSymbol<T>::registerDeviceNotification(Callback user_callback,
 }
 
 template<typename T>
-void AdsSymbol<T>::notificationCallback(AmsAddr* ams_addr, AdsNotificationHeader* notification, ulong user_handle) {
+void AdsSymbol<T>::notificationCallback(AmsAddr* ams_addr,
+                                        AdsNotificationHeader* notification,
+                                        unsigned long user_handle) {
 
     assert(sizeof(T) == notification->cbSampleSize);
 

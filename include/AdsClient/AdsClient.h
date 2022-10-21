@@ -13,19 +13,22 @@
 #include <TcAdsDef.h>
 #include <TcAdsAPI.h>
 
-typedef unsigned long ulong;
-typedef const unsigned long& ulong_ref;
-
 // Symbol forward declaration
 template <typename T>
 class AdsSymbol;
 
 /**
- * Class to wrap around ADS communication
+ * Class to wrap around ADS communication.
+ *
+ * Note: the underlying ADS library almost never uses `const` for it's argument when
+ * it would be appropriate. So we do not use it often either.
  */
 class AdsClient {
 
 public:
+
+    using VariableHandle = unsigned long;
+    using NotificationHandle = unsigned long;
 
     /**
      * Map of error codes to human-readable error messages.
@@ -54,7 +57,7 @@ public:
      * @param name
      * @return
      */
-    unsigned long getVariableByName(std::string name);
+    VariableHandle getVariableByName(std::string name);
 
     /**
      * Get variable information based on it's name.
@@ -69,7 +72,7 @@ public:
      * @param handle
      * @return
      */
-    bool releaseVariableHandle(ulong handle);
+    bool releaseVariableHandle(VariableHandle handle);
 
     /**
      * Read from remote using address.
@@ -80,10 +83,10 @@ public:
      * @param num_bytes
      * @return
      */
-    bool read(ulong_ref index_group,
-              ulong_ref index_offset,
+    bool read(const unsigned long& index_group,
+              const unsigned long& index_offset,
               void* buffer,
-              ulong_ref num_bytes);
+              const unsigned long& num_bytes);
 
     /**
      * Write data by address.
@@ -93,10 +96,10 @@ public:
      * @param num_bytes
      * @return
      */
-    bool write(ulong_ref index_group,
-               ulong_ref index_offset,
+    bool write(const unsigned long& index_group,
+               const unsigned long& index_offset,
                void *data,
-               ulong_ref num_bytes);
+               const unsigned long& num_bytes);
 
     /**
      * Read data from variable handle
@@ -106,9 +109,9 @@ public:
      * @param num_bytes
      * @return
      */
-    bool read_by_handle(ulong_ref handle,
+    bool read_by_handle(const VariableHandle& handle,
                         void* buffer,
-                        ulong_ref num_bytes);
+                        const unsigned long& num_bytes);
 
     /**
      * Write data by variable handle
@@ -118,9 +121,9 @@ public:
      * @param num_bytes
      * @return
      */
-    bool write_by_handle(ulong_ref handle,
+    bool write_by_handle(const VariableHandle& handle,
                          void *data,
-                         ulong_ref num_bytes);
+                         const unsigned long& num_bytes);
 
     /**
      * Attach a function callback to a remote value change inside TwinCAT.
@@ -132,8 +135,7 @@ public:
      * @param callback      User callback function
      * @param var_length    Size of the watched variable - ignored when using
      *                      custom attribute
-     * @param user_handle   User-defined handle, attached to callback (default:
-     *                      handled automatically)
+     * @param user_handle   User-defined handle, sent to callback
      * @param attrib        Notification attributes (optional)
      * @return Notification handle
      */
@@ -141,30 +143,30 @@ public:
     /**
      * @param handle        Variable handle
      */
-    unsigned long registerNotification(ulong_ref handle,
-                                       PAdsNotificationFuncEx callback,
-                                       unsigned long var_length = 8,
-                                       unsigned long user_handle = 0,
-                                       AdsNotificationAttrib* attrib = nullptr);
+    NotificationHandle registerNotification(const VariableHandle& handle,
+                                            PAdsNotificationFuncEx callback,
+                                            const unsigned long& var_length = 8,
+                                            const unsigned long& user_handle = 0,
+                                            AdsNotificationAttrib* attrib = nullptr);
     /**
      * @param index_group    Variable group index
      * @param index_offset   Variable index offset
      */
-    unsigned long registerNotification(ulong_ref index_group,
-                                       ulong_ref index_offset,
-                                       PAdsNotificationFuncEx callback,
-                                       unsigned long var_length = 8,
-                                       unsigned long user_handle = 0,
-                                       AdsNotificationAttrib* attrib = nullptr);
+    NotificationHandle registerNotification(const unsigned long& index_group,
+                                            const unsigned long& index_offset,
+                                            PAdsNotificationFuncEx callback,
+                                            const unsigned long& var_length = 8,
+                                            const unsigned long& user_handle = 0,
+                                            AdsNotificationAttrib* attrib = nullptr);
     //}
 
     /**
      * Free a notification callback
      *
-     * @param noti_handle
+     * @param handle
      * @return
      */
-    bool clearNotification(ulong noti_handle);
+    bool clearNotification(NotificationHandle handle);
 
     /**
      * Disconnect
@@ -187,7 +189,7 @@ public:
      * @param error
      * @return
      */
-    static std::string getAdsErrorMessage(unsigned long error);
+    static std::string getAdsErrorMessage(const unsigned long& error);
 
 protected:
     long ads_port_; ///< Twincat port
@@ -196,9 +198,7 @@ protected:
 
     bool connected_; ///< Keep track if still connected to ADS
 
-    std::set<unsigned long> notification_handles_; ///< List of notification handles
-
-    static unsigned long USER_HANDLE; ///< Increasing handle for notifications
+    std::set<NotificationHandle> notification_handles_; ///< List of notification handles
 };
 
 // For template implementation:

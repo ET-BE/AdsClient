@@ -22,6 +22,9 @@ template <typename T>
 class AdsSymbol {
 public:
 
+    using VariableHandle = AdsClient::VariableHandle;
+    using NotificationHandle = AdsClient::NotificationHandle;
+
     struct Index {
         unsigned long group;
         unsigned long offset;
@@ -129,7 +132,9 @@ protected:
      * @param notification
      * @param user_handle
      */
-    static void notificationCallback(AmsAddr* ams_addr, AdsNotificationHeader* notification, ulong user_handle);
+    static void notificationCallback(AmsAddr* ams_addr,
+                                     AdsNotificationHeader* notification,
+                                     unsigned long user_handle);
 
     AdsClient* client_; ///< Pointer to active TwinCAT connection
 
@@ -140,9 +145,15 @@ protected:
 
     T value_; ///< Last known remote value
 
-    std::set<ulong> notification_handles_; ///< Notification handles for this symbol
+    std::set<NotificationHandle> notification_handles_; ///< Notification handles for this symbol
 
-    static std::map<ulong, Callback> user_callbacks_; ///< Track user callbacks by notification handles
+    /**
+     * Track user callbacks by their notification handles.
+     *
+     * Each notification handle is unique, also across variables and functions. TwinCAT increments
+     * the number and resets it at startup.
+     */
+    static std::map<NotificationHandle, Callback> user_callbacks_;
 };
 
 // Load implementation of this template class (cannot be compiled like regular .cpp)
