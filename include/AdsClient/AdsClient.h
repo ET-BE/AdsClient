@@ -3,11 +3,11 @@
 
 #include <array>
 #include <string>
-#include <vector>
+#include <set>
 #include <map>
 
 #ifdef WIN32
-#include <windows.h>
+#include <Windows.h>
 #endif
 
 #include <TcAdsDef.h>
@@ -125,8 +125,11 @@ public:
     /**
      * Attach a function callback to a remote value change inside TwinCAT.
      *
-     * @param handle
-     * @param callback
+     * It is recommended to use `AdsSymbol::registerNotification` instead.
+     * Note: the callback will fire immediately upon creating the notfication,
+     * regardless of the value.
+     *
+     * @param callback      User callback function
      * @param var_length    Size of the watched variable - ignored when using
      *                      custom attribute
      * @param user_handle   User-defined handle, attached to callback (default:
@@ -134,11 +137,26 @@ public:
      * @param attrib        Notification attributes (optional)
      * @return Notification handle
      */
+    //{
+    /**
+     * @param handle        Variable handle
+     */
     unsigned long registerNotification(ulong_ref handle,
                                        PAdsNotificationFuncEx callback,
                                        unsigned long var_length = 8,
                                        unsigned long user_handle = 0,
                                        AdsNotificationAttrib* attrib = nullptr);
+    /**
+     * @param index_group    Variable group index
+     * @param index_offset   Variable index offset
+     */
+    unsigned long registerNotification(ulong_ref index_group,
+                                       ulong_ref index_offset,
+                                       PAdsNotificationFuncEx callback,
+                                       unsigned long var_length = 8,
+                                       unsigned long user_handle = 0,
+                                       AdsNotificationAttrib* attrib = nullptr);
+    //}
 
     /**
      * Free a notification callback
@@ -178,7 +196,7 @@ protected:
 
     bool connected_; ///< Keep track if still connected to ADS
 
-    std::vector<unsigned long> notification_handles_; ///< List of notification handles
+    std::set<unsigned long> notification_handles_; ///< List of notification handles
 
     static unsigned long USER_HANDLE; ///< Increasing handle for notifications
 };

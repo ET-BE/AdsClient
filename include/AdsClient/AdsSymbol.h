@@ -2,6 +2,8 @@
 #define ADSCLIENT_ADSSYMBOL_H
 
 #include <string>
+#include <map>
+#include <set>
 
 #include "AdsClient.h"
 
@@ -9,6 +11,12 @@
  * Wrapper for remote ADS symbol.
  *
  * Any handle acquisition and release is done automatically.
+ *
+ * Take care with integer types. These PLC types correspond to the following C++ types:
+ * SINT (8 bit)     -> char
+ * INT (16 bit)     -> short
+ * DINT (32 bit)    -> int
+ * LINT (64 bit)    -> long
  */
 template <typename T>
 class AdsSymbol {
@@ -18,6 +26,9 @@ public:
         unsigned long group;
         unsigned long offset;
     };
+
+    typedef void (*Callback)(T);
+    // using Callback = void (*)(T);
 
     /**
      * Make symbol by name.
@@ -86,15 +97,52 @@ public:
      */
     T& value();
 
+    /**
+     * Create notification for symbol.
+     *
+     * See `AdsClient::registerDeviceNotification`.
+     * The local buffer will also be updated on each call.
+     *
+     * @param user_callback
+     * @return
+     */
+    unsigned long registerDeviceNotification(Callback user_callback,
+                                             unsigned long user_handle = 0,
+                                             AdsNotificationAttrib* attrib = nullptr);
+
+    /**
+     * Release a notification
+     *
+     * @param noti_handle
+     * @return
+     */
+    bool clearNotification(unsigned long noti_handle);
+
 protected:
+
+    /**
+     * Callback that will be used for every notification.
+     *
+     * It will route back to the desired user callback
+     *
+     * @param ams_addr
+     * @param notification
+     * @param user_handle
+     */
+    static void notificationCallback(AmsAddr* ams_addr, AdsNotificationHeader* notification, ulong user_handle);
+
     AdsClient* client_; ///< Pointer to active TwinCAT connection
 
     std::string name_; ///< Remote variable name
 
-    unsigned long handle_; ///< Variable handle
+    bool use_handle_; ///< If true, `index_` is a variable handle
     Index index_; ///< Variable indices
 
     T value_; ///< Last known remote value
+
+    std::set<ulong> notification_handles_; ///< Notification handles for this symbol
+
+    static std::map<ulong, Callback> user_callbacks_; ///< Track user callbacks by notification handles
 };
 
 // Load implementation of this template class (cannot be compiled like regular .cpp)

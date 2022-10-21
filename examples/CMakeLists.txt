@@ -7,3 +7,4 @@ endif()
 
 add_subdirectory(basic)
 add_subdirectory(symbols)
+add_subdirectory(notification)

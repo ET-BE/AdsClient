@@ -39,7 +39,8 @@ void AdsClient::close() {
     }
 
     while (!notification_handles_.empty()) {
-        clearNotification(notification_handles_.back());
+        clearNotification(*notification_handles_.begin());
+        // Entries in the set will be removed, so use while loop instead of iterators
     }
 
     long error = AdsPortClose();
@@ -152,44 +153,36 @@ bool AdsClient::write(ulong_ref index_group, ulong_ref index_offset, void* data,
 
 bool AdsClient::read_by_handle(ulong_ref handle, void* buffer, ulong_ref num_bytes) {
 
-    unsigned long bytes_read;
-
-    long error = AdsSyncReadReqEx2(ads_port_,
-                                   p_address_,
-                                   ADSIGRP_SYM_VALBYHND,
-                                   handle,
-                                   num_bytes,
-                                   buffer,
-                                   &bytes_read);
-
-    if (error) {
-        std::cerr << "Error in read_by_handle: " << getAdsErrorMessage(error) << std::endl;
-        return false;
-    }
-    if (bytes_read != num_bytes) {
-        std::cerr << "Error while reading from variable: requested " << num_bytes
-                  << " bytes, but received " << bytes_read << " bytes" << std::endl;
-    }
-    return true;
+    return read(ADSIGRP_SYM_VALBYHND,
+                handle,
+                buffer,
+                num_bytes);
 }
 
 bool AdsClient::write_by_handle(ulong_ref handle, void* data, ulong_ref num_bytes) {
 
-    long error = AdsSyncWriteReqEx(ads_port_,
-                                   p_address_,
-                                   ADSIGRP_SYM_VALBYHND,
-                                   handle,
-                                   num_bytes,
-                                   data);
-
-    if (error) {
-        std::cerr << "Error in write_by_handle: " << getAdsErrorMessage(error) << std::endl;
-        return false;
-    }
-    return true;
+    return write(ADSIGRP_SYM_VALBYHND,
+                 handle,
+                 data,
+                 num_bytes);
 }
 
 unsigned long AdsClient::registerNotification(ulong_ref handle,
+                                              PAdsNotificationFuncEx callback,
+                                              unsigned long var_length,
+                                              unsigned long user_handle,
+                                              AdsNotificationAttrib* attrib) {
+
+    return registerNotification(ADSIGRP_SYM_VALBYHND,
+                                handle,
+                                callback,
+                                var_length,
+                                user_handle,
+                                attrib);
+}
+
+unsigned long AdsClient::registerNotification(ulong_ref index_group,
+                                              ulong_ref index_offset,
                                               PAdsNotificationFuncEx callback,
                                               unsigned long var_length,
                                               unsigned long user_handle,
@@ -213,8 +206,8 @@ unsigned long AdsClient::registerNotification(ulong_ref handle,
 
     long error = AdsSyncAddDeviceNotificationReqEx(ads_port_,
                                                    p_address_,
-                                                   ADSIGRP_SYM_VALBYHND,
-                                                   handle,
+                                                   index_group,
+                                                   index_offset,
                                                    attrib,
                                                    callback,
                                                    user_handle,
@@ -225,7 +218,7 @@ unsigned long AdsClient::registerNotification(ulong_ref handle,
         return 0;
     }
 
-    notification_handles_.push_back(noti_handle); // add hUser to list
+    notification_handles_.insert(noti_handle); // add handle to list
     return noti_handle;
 }
 
@@ -233,11 +226,9 @@ bool AdsClient::clearNotification(ulong noti_handle) {
 
     long error = AdsSyncDelDeviceNotificationReqEx(ads_port_, p_address_, noti_handle);
 
-    notification_handles_.erase(
-            std::remove(notification_handles_.begin(),
-                        notification_handles_.end(),
-                        noti_handle), notification_handles_.end()
-    ); // Remove anyway - if release fails we cannot do anything else
+    notification_handles_.erase(noti_handle);
+
+    // Remove anyway - if release fails we cannot do anything else
 
     if (error) {
         std::cerr << "Error in clearNotification: " << getAdsErrorMessage(error) << std::endl;
